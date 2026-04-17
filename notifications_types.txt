@@ -1,0 +1,53 @@
+**Notification Types in HopeFinder System**
+
+**Core Types** (stored in `type` column):
+```
+new_report - New missing person report (high → police)
+report_approved - Report approved (medium → user)
+user_registered - New user signup (low → admin)
+match_found - AI match detected (high → police/admin)
+case_closed - Case resolved (medium → user/police)
+system_alert - System maintenance/security (varies)
+police_assigned - Case assigned to officer (medium → police)
+report_rejected - Report rejected (low → user)
+new_found_person - New found person record (medium → police)
+verification_pending - Awaiting verification (high → admin/police)
+```
+
+**Usage Examples**:
+```php
+// New missing report
+send_notification(null, 'police', 'New report #R123', 'new_report', 'view-report.php?id=R123', 'high');
+
+// Report approved  
+send_notification($user_id, 'user', 'Your report approved', 'report_approved', null, 'medium');
+
+// User registered
+send_notification(null, 'admin', 'New user: John Doe', 'user_registered', null, 'low');
+```
+
+**Priority System**:
+```
+high → red badge + sound (urgent: new reports, matches)
+medium → yellow badge (important: approvals, assignments)
+low → green badge (info: registrations, updates)
+```
+
+**Role Targeting**:
+```
+'all' → everyone
+'admin' → admins only
+'police' → police officers
+'user' → public users
+user_id → specific user
+```
+
+**Icons by Type** (add to JS):
+```
+new_report → bi-file-earmark-text
+match_found → bi-heart-fill
+user_registered → bi-person-plus
+report_approved → bi-check-circle
+```
+
+**Extend easily** - add new types to `send_notification()` calls.

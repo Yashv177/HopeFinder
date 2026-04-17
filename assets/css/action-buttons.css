@@ -1,0 +1,390 @@
+/* ===========================================
+   ACTION BUTTONS & DROPDOWN FIXES
+   Ensure action buttons are visible and properly positioned
+   =========================================== */
+
+/* ===== TABLE ACTIONS FIXES ===== */
+
+/* Ensure action column has proper overflow */
+.table-actions {
+    white-space: nowrap;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix table overflow for dropdown visibility */
+.table-responsive {
+    overflow-x: visible;
+    overflow-y: visible;
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure table has proper z-index */
+.table {
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+}
+
+.table tbody {
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+}
+
+.table tbody tr {
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+}
+
+.table tbody td {
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+}
+
+/* ===== DROPDOWN MENU FIXES ===== */
+
+/* Ensure dropdown menus are visible and properly positioned */
+.dropdown {
+    position: relative;
+    z-index: 1000;
+}
+
+.dropdown-menu {
+    position: absolute;
+    z-index: 2000;
+    display: none;
+    min-width: 180px;
+    padding: 0.5rem 0;
+    margin: 0;
+    font-size: 0.875rem;
+    color: #fff;
+    text-align: left;
+    list-style: none;
+    background-color: var(--bg-card, #16161e);
+    background-clip: padding-box;
+    border: 1px solid var(--border-color, #27272a);
+    border-radius: var(--radius-md, 12px);
+    box-shadow: var(--shadow-lg, 0 10px 20px rgba(0, 0, 0, 0.4));
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+}
+
+.dropdown-menu.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.dropdown-menu-end {
+    right: 0;
+    left: auto;
+}
+
+/* Dropdown items */
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    clear: both;
+    font-weight: 400;
+    color: var(--text-primary, #ffffff);
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    color: var(--text-primary, #ffffff);
+    text-decoration: none;
+    background-color: var(--bg-hover, #1e1e2a);
+    outline: none;
+}
+
+.dropdown-item.text-danger {
+    color: var(--danger, #ef4444);
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger, #ef4444);
+}
+
+/* Dropdown divider */
+.dropdown-divider {
+    height: 0;
+    margin: 0.5rem 0;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color, #27272a);
+}
+
+/* Dropdown toggle button */
+.dropdown-toggle {
+    white-space: nowrap;
+}
+
+.dropdown-toggle::after {
+    display: inline-block;
+    margin-left: 0.255em;
+    vertical-align: 0.255em;
+    content: "";
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+}
+
+/* Fix dropdown positioning issues */
+.table-responsive .dropdown {
+    position: static;
+}
+
+.table-responsive .dropdown-menu {
+    position: fixed;
+    z-index: 9999;
+}
+
+/* Alternative: Use absolute positioning relative to table cell */
+.table tbody td .dropdown {
+    position: static;
+}
+
+.table tbody td .dropdown-menu {
+    position: fixed;
+    top: auto;
+    left: auto;
+    z-index: 9999;
+    transform: none;
+}
+
+/* Fix for Firefox and other browsers */
+@media screen and (prefers-reduced-motion: reduce) {
+    .dropdown-menu {
+        transition: none;
+    }
+}
+
+/* ===== INLINE ACTION ICONS FIXES ===== */
+
+/* For tables that use inline icons instead of dropdowns */
+.inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.inline-actions i {
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+.inline-actions i:hover {
+    transform: scale(1.1);
+}
+
+.inline-actions .bi-eye:hover {
+    color: var(--secondary, #0ea5e9);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.inline-actions .bi-check-lg:hover,
+.inline-actions .bi-check-circle:hover {
+    color: var(--accent, #22c55e);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.inline-actions .bi-check2-square:hover {
+    color: var(--accent, #22c55e);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.inline-actions .bi-x-square:hover {
+    color: var(--danger, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.inline-actions .bi-trash:hover {
+    color: var(--danger, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.inline-actions .bi-pencil:hover {
+    color: var(--warning, #f59e0b);
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.inline-actions .bi-download:hover {
+    color: var(--secondary, #0ea5e9);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.inline-actions .bi-person-plus:hover {
+    color: var(--info, #06b6d4);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+/* ===== ACTION BUTTON IN TABLE HEADER ===== */
+
+/* Fix action column header */
+th:last-child,
+td:last-child {
+    text-align: center;
+    width: 120px;
+    min-width: 120px;
+}
+
+/* ===== BADGE POSITIONING ===== */
+
+/* Ensure badges don't overlap with actions */
+.badge-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: var(--radius-full, 9999px);
+}
+
+/* ===== LOADING STATE FOR ACTIONS ===== */
+
+/* Loading spinner for action buttons */
+.action-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.action-loading::after {
+    content: "";
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 50%;
+    margin-left: -0.5rem;
+    margin-top: -0.5rem;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===== TOAST NOTIFICATIONS ===== */
+
+/* Fix toast positioning */
+.toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.toast-container .toast {
+    pointer-events: auto;
+    background: var(--bg-card, #16161e);
+    border: 1px solid var(--border-color, #27272a);
+    color: var(--text-primary, #ffffff);
+    border-radius: var(--radius-md, 12px);
+    box-shadow: var(--shadow-lg, 0 10px 20px rgba(0, 0, 0, 0.4));
+}
+
+/* ===== SUCCESS/ERROR ANIMATIONS ===== */
+
+/* Row highlight on successful action */
+@keyframes rowHighlight {
+    0% { background-color: rgba(34, 197, 94, 0.3); }
+    100% { background-color: transparent; }
+}
+
+.row-success {
+    animation: rowHighlight 1s ease forwards;
+}
+
+@keyframes rowHighlightError {
+    0% { background-color: rgba(239, 68, 68, 0.3); }
+    100% { background-color: transparent; }
+}
+
+.row-error {
+    animation: rowHighlightError 1s ease forwards;
+}
+
+/* ===== RESPONSIVE FIXES ===== */
+
+@media (max-width: 768px) {
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    th:last-child,
+    td:last-child {
+        position: sticky;
+        right: 0;
+        background: var(--bg-card, #16161e);
+        border-left: 1px solid var(--border-color, #27272a);
+        z-index: 5;
+    }
+    
+    th:last-child {
+        background: var(--bg-tertiary, #1a1a24);
+        z-index: 6;
+    }
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+/* Focus states for action buttons */
+.dropdown-item:focus,
+.inline-actions i:focus {
+    outline: 2px solid var(--primary, #4f46e5);
+    outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .dropdown-menu {
+        border: 2px solid #fff;
+    }
+    
+    .dropdown-item {
+        border: 1px solid transparent;
+    }
+    
+    .dropdown-item:hover {
+        border: 1px solid #fff;
+    }
+}
+

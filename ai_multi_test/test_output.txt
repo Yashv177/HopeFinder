@@ -1,0 +1,23 @@
+============================================================
+FACE DETECTION TEST
+============================================================
+Haar Cascade loaded successfully
+
+Testing: image 1.jpg
+  Size: 654x771
+  Faces detected: 1
+  Face: x=158, y=119, size=350x350
+
+Testing: image 2.jpg
+  Size: 619x795
+  Faces detected: 1
+  Face: x=151, y=134, size=297x297
+
+Testing: image3.jpeg
+  Size: 1094x1600
+  Faces detected: 2
+  Face: x=369, y=1039, size=490x490
+  Face: x=294, y=485, size=495x495
+
+============================================================
+DONE

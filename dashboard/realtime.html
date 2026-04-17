@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HopeFinder - Real-Time AI Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        #videoContainer { position: relative; max-width: 640px; }
+        #videoStream { width: 640px; height: 480px; object-fit: cover; }
+        .detection-box { position: absolute; border: 3px solid #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .alert-match { animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="bi bi-camera-video"></i> Real-Time CCTV Detection</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="videoContainer">
+                            <img id="videoStream" src="" alt="Live Stream">
+                            <div id="detectionsOverlay"></div>
+                        </div>
+                        <div id="status" class="mt-3">
+                            <span class="badge bg-secondary">Select reports and start detection</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-list-check"></i> Missing Persons</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reportsList"></div>
+                        <div class="mt-3">
+                            <button class="btn btn-success w-100" id="startBtn" onclick="startDetection()">
+                                <i class="bi bi-play-circle"></i> Start AI Search
+                            </button>
+                            <button class="btn btn-danger w-100 mt-2" id="stopBtn" onclick="stopDetection()" disabled>
+                                <i class="bi bi-stop-circle"></i> Stop
+                            </button>
+                        </div>
+                        <hr>
+                        <h6>Recent Detections</h6>
+                        <div id="recentDetections" class="small"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = '';
+        let pollingInterval;
+        let selectedReports = [];
+
+        async function loadReports() {
+            try {
+                const res = await fetch('/HopeFinder/admin/api/get_missing_persons.php');
+                const reports = await res.json();
+                const list = document.getElementById('reportsList');
+                list.innerHTML = reports.map(r => `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${r.id}" id="rep${r.id}" onchange="toggleReport(${r.id})">
+
+<label class="form-check-label d-flex align-items-center" for="rep${r.id}">
+
+<img src="/HopeFinder/admin/api/serve_image.php?file=${encodeURIComponent(r.photo)}" style="width:30px;height:30px;border-radius:50%;margin-right:8px;object-fit:cover;" onerror="this.style.display='none'">
+    ${r.name}
+
+</label>
+
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Load reports error', e);
+            }
+        }
+
+        function toggleReport(id) {
+            if (document.getElementById(`rep${id}`).checked) {
+                selectedReports.push(id);
+            } else {
+                selectedReports = selectedReports.filter(r => r !== id);
+            }
+            document.getElementById('startBtn').disabled = selectedReports.length === 0;
+        }
+
+        async function startDetection() {
+            if (selectedReports.length === 0) return alert('Select reports');
+            
+            try {
+                sessionId = 'session_' + Date.now();
+                const res = await fetch('/HopeFinder/admin/api/start_ai_detection.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({report_ids: selectedReports})
+                });
+                const data = await res.json();
+                
+                document.getElementById('status').innerHTML = `<span class="badge bg-success">AI Active - ${data.session_id}</span>`;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                // Start stream
+                document.getElementById('videoStream').src = 'http://localhost:5001/video_feed?session=' + sessionId;
+                
+                // Poll detections
+                pollDetections();
+            } catch (e) {
+                alert('Start error: ' + e.message);
+            }
+        }
+
+        function stopDetection() {
+            // Stop stream
+            document.getElementById('videoStream').src = '';
+            clearInterval(pollingInterval);
+            document.getElementById('status').innerHTML = `<span class="badge bg-secondary">Stopped</span>`;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        async function pollDetections() {
+            pollingInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/HopeFinder/admin/api/get_live_detections.php?session=${sessionId}&limit=5`);
+                    const detections = await res.json();
+                    
+                    const recentDiv = document.getElementById('recentDetections');
+                    if (detections.length > 0) {
+                        recentDiv.innerHTML = detections.map(d => 
+                            `<div class="alert alert-success alert-match small mb-1">
+                                Report #${d.report_id}: ${d.confidence}% - ${new Date(d.timestamp).toLocaleTimeString()}
+                            </div>`
+                        ).join('');
+                    } else {
+                        recentDiv.innerHTML = '<small>No detections yet...</small>';
+                    }
+                } catch (e) {
+                    console.error('Poll error', e);
+                }
+            }, 1000);
+        }
+
+        // Init
+        loadReports();
+    </script>
+</body>
+</html>
+
