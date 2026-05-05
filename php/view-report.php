@@ -35,7 +35,7 @@ $stmt->close();
 
 // Get AI matches
 $matches = [];
-$matchResult = $conn->query("SELECT m.*, fp.name as found_name, fp.found_location, fp.date_found, fp.photo_path as found_photo FROM ai_matches m LEFT JOIN found_persons fp ON m.found_id = fp.found_id WHERE m.report_id = $report_id AND m.status = 'approved' ORDER BY m.match_percent DESC");
+$matchResult = $conn->query("SELECT m.*, d.image_path as found_photo, d.address as found_location, d.timestamp as date_found FROM ai_matches m LEFT JOIN detections d ON m.found_id = d.detection_id WHERE m.report_id = $report_id AND m.status = 'approved' ORDER BY m.match_percent DESC");
 if ($matchResult) {
     while ($row = $matchResult->fetch_assoc()) {
         $matches[] = $row;

@@ -1,88 +1,116 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit(0);
-
 require_once '../config/db.php';
+require_once '../../../api/helpers/notification_helper.php';
 
-$input = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$report_id = isset($input['report_id']) ? (int)$input['report_id'] : 0;
-$image_path = isset($input['image_path']) ? trim($input['image_path']) : '';
-$confidence = isset($input['confidence']) ? (float)$input['confidence'] : 0;
-$timestamp_raw = isset($input['timestamp']) ? $input['timestamp'] : date('Y-m-d H:i:s');
-$timestamp_value = strtotime($timestamp_raw);
-$timestamp = $timestamp_value ? date('Y-m-d H:i:s', $timestamp_value) : date('Y-m-d H:i:s');
-$confidence = max(0, min(100, $confidence));
+// Read JSON input
+$data = json_decode(file_get_contents("php://input"), true);
 
-// Production thresholds
-$is_high_conf = $confidence >= 95;
-$is_alert_conf = $confidence >= 90;
-
-if (!$report_id || !$image_path || $confidence <= 0) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Missing required fields']);
+if (!$data) {
+    echo json_encode(["error" => "Invalid JSON"]);
     exit;
 }
 
-// Check for recent dedupe (5min cooldown per report)
-$check_stmt = $conn->prepare("SELECT COUNT(*) as recent_count FROM ai_detections WHERE report_id = ? AND timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
-$check_stmt->bind_param('i', $report_id);
-$check_stmt->execute();
-$check_result = $check_stmt->get_result()->fetch_assoc();
-$recent_count = (int)$check_result['recent_count'];
-$check_stmt->close();
+// Extract data
+$report_id  = $data['report_id'] ?? null;
+$image_path = $data['image_path'] ?? '';
+$confidence = $data['confidence'] ?? 0;
+$timestamp  = $data['timestamp'] ?? date("Y-m-d H:i:s");
 
-if ($recent_count > 0 && !$is_high_conf) {
-    echo json_encode([
-        'status' => 'duplicate', 
-        'message' => 'Recent detection exists (cooldown)',
-        'recent_count' => $recent_count
-    ]);
-    $conn->close();
-    exit;
+$lat = $data['latitude'] ?? null;
+$lng = $data['longitude'] ?? null;
+
+// Default address
+$address = "Unknown";
+
+// Reverse Geocoding
+if ($lat !== null && $lng !== null) {
+
+    $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng";
+
+    $options = [
+        "http" => [
+            "header" => "User-Agent: HopeFinderApp/1.0\r\n"
+        ]
+    ];
+
+    $context = stream_context_create($options);
+    $response = @file_get_contents($url, false, $context);
+
+    if ($response !== FALSE) {
+        $geoData = json_decode($response, true);
+
+        if (isset($geoData['address'])) {
+            $addr = $geoData['address'];
+
+            $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? '';
+            $state = $addr['state'] ?? '';
+            $country = $addr['country'] ?? '';
+
+            $address = trim("$city, $state, $country", ", ");
+        }
+    }
 }
 
-// High confidence: Mark as FOUND
-if ($is_high_conf) {
-    $update_stmt = $conn->prepare("UPDATE missing_reports SET status = 'found' WHERE report_id = ? AND status = 'assigned'");
-    $update_stmt->bind_param('i', $report_id);
-    $update_result = $update_stmt->execute();
-    $update_stmt->close();
-    
-    $response_message = "Detection saved & status updated to FOUND (95%+ confidence)";
-} else {
-    $response_message = "Detection saved";
+// ==============================
+// 1. SAVE DETECTION
+// ==============================
+$stmt = $conn->prepare("
+    INSERT INTO detections 
+    (report_id, image_path, confidence, latitude, longitude, address, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+");
+
+$stmt->bind_param(
+    "isdssss",
+    $report_id,
+    $image_path,
+    $confidence,
+    $lat,
+    $lng,
+    $address,
+    $timestamp
+);
+
+$stmt->execute();
+
+// ==============================
+// 2. CHECK IF ALREADY FOUND
+// ==============================
+
+// 🔔 SEND NOTIFICATIONS
+$q = $conn->prepare("SELECT user_id FROM missing_reports WHERE report_id = ?");
+$q->bind_param("i", $report_id);
+$q->execute();
+$res = $q->get_result();
+$user = $res->fetch_assoc();
+
+if ($user) {
+    $user_id = $user['user_id'];
+    sendNotification($user_id, "user", "Good news! We may have found your missing person.");
 }
 
-// Always log detection
-$stmt = $conn->prepare("INSERT INTO ai_detections (report_id, image_path, confidence, timestamp) VALUES (?, ?, ?, ?)");
-if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $conn->error]);
-    $conn->close();
-    exit;
-}
+// admin
+sendNotification(null, "admin", "AI detected a match in system");
 
-$stmt->bind_param('isds', $report_id, $image_path, $confidence, $timestamp);
+// ==============================
+// STATUS UPDATE
+// ==============================
 
-if ($stmt->execute()) {
-    $high_conf_note = $is_high_conf ? ' (MARKED FOUND)' : '';
-    $alert_note = $is_alert_conf ? ' (ALERT LEVEL)' : '';
-    echo json_encode([
-        'status' => 'success',
-        'detection_id' => $conn->insert_id,
-        'message' => $response_message . $high_conf_note . $alert_note,
-        'confidence_level' => $is_high_conf ? 'found' : ($is_alert_conf ? 'alert' : 'log'),
-        'confidence_pct' => round($confidence, 1)
-    ]);
-} else {
-    echo json_encode(['status' => 'error', 'message' => $conn->error]);
-}
+$update = $conn->prepare("
+    UPDATE missing_reports 
+    SET status = 'found'
+    WHERE report_id = ?
+");
 
-$stmt->close();
-$conn->close();
+$update->bind_param("i", $report_id);
+$update->execute();
+
+// ==============================
+// RESPONSE
+// ==============================
+echo json_encode([
+    "status" => "success",
+    "address" => $address
+]);
 ?>

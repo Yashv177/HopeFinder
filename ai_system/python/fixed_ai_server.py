@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""HopeFinder AI Server - FINAL VERSION (Detection + Match + Save)"""
-
 import cv2
 import numpy as np
 import face_recognition
@@ -12,90 +9,62 @@ from flask import Flask, Response, request, jsonify
 from pathlib import Path
 import logging
 
-# Paths
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOADS_DIR = ROOT_DIR / 'uploads'
 AI_FOUND_DIR = UPLOADS_DIR / 'ai_found'
 AI_FOUND_DIR.mkdir(parents=True, exist_ok=True)
 
-# API
 GET_MISSING_URL = 'http://127.0.0.1/HopeFinder/ai_system/backend/api/get_missing.php'
+SAVE_API = 'http://127.0.0.1/HopeFinder/ai_system/backend/api/save_detection.php'
 
-# Config
 FRAME_W, FRAME_H = 640, 480
 SKIP_FRAMES = 2
 TOLERANCE = 0.6
 
-# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Globals
 stop_event = threading.Event()
 target_encodings = []
 frame_queue = queue.Queue(maxsize=3)
 latest_frame = None
 latest_annotated = None
 
-# ------------------ LOAD TARGETS ------------------
+# ✅ GLOBAL GPS STORAGE
+current_location = {
+    "latitude": None,
+    "longitude": None
+}
 
+# ---------------- LOAD TARGETS ----------------
 def load_selected_targets(selected_ids):
-    if not selected_ids:
-        return 0
+    global target_encodings
+    target_encodings = []
 
-    try:
-        resp = requests.get(GET_MISSING_URL, params={'ids': selected_ids})
-        data = resp.json()
+    resp = requests.get(GET_MISSING_URL, params={'ids': selected_ids})
+    data = resp.json()
 
-        encodings = []
+    for person in data:
+        rid = person['id']
+        path = ROOT_DIR / person['photo']
 
-        for person in data:
-            rid = person.get('id')
-            photo_rel = person.get('photo')
+        if not path.exists():
+            continue
 
-            if not photo_rel:
-                continue
+        img = face_recognition.load_image_file(str(path))
+        enc = face_recognition.face_encodings(img)
 
-            # FIXED PATH
-            full_path = ROOT_DIR / photo_rel
+        if enc:
+            target_encodings.append({
+                "id": rid,
+                "encoding": enc[0]
+            })
 
-            if not full_path.exists():
-                fallback = UPLOADS_DIR / 'missing_persons' / Path(photo_rel).name
-                if fallback.exists():
-                    full_path = fallback
-                else:
-                    logger.error(f"❌ Image not found: {photo_rel}")
-                    continue
+    return len(target_encodings)
 
-            logger.info(f"✅ Loading: {full_path}")
-
-            try:
-                img = face_recognition.load_image_file(str(full_path))
-                enc = face_recognition.face_encodings(img)
-
-                if enc:
-                    encodings.append(enc[0])
-                    logger.info(f"🔥 Loaded ID: {rid}")
-                else:
-                    logger.warning(f"No face in image {rid}")
-
-            except Exception as e:
-                logger.error(f"Encoding error {rid}: {e}")
-
-        global target_encodings
-        target_encodings = encodings
-
-        logger.info(f"TOTAL TARGETS: {len(encodings)}")
-        return len(encodings)
-
-    except Exception as e:
-        logger.error(f"Load error: {e}")
-        return 0
-
-# ------------------ CAMERA ------------------
-
+# ---------------- CAMERA ----------------
 def camera_thread():
     cap = cv2.VideoCapture(0)
 
@@ -112,88 +81,86 @@ def camera_thread():
         global latest_frame
         latest_frame = frame
 
-        time.sleep(0.01)
-
     cap.release()
 
-# ------------------ DETECTION ------------------
-
+# ---------------- DETECTION ----------------
 def detection_thread():
-    frame_count = 0
-
     while not stop_event.is_set():
+
         try:
             frame = frame_queue.get(timeout=0.1)
         except:
             continue
 
-        frame_count += 1
-
-        if frame_count % (SKIP_FRAMES + 1) != 0:
-            continue
-
         annotated = frame.copy()
 
-        if len(target_encodings) == 0:
-            cv2.putText(annotated, "AI Ready - No Targets", (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        else:
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        enc_list = [t["encoding"] for t in target_encodings]
+        ids_list = [t["id"] for t in target_encodings]
 
-            face_locations = face_recognition.face_locations(rgb)
-            face_encodings = face_recognition.face_encodings(rgb, face_locations)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            for (top, right, bottom, left), face_enc in zip(face_locations, face_encodings):
+        faces = face_recognition.face_locations(rgb)
+        encodings = face_recognition.face_encodings(rgb, faces)
 
-                matches = face_recognition.compare_faces(target_encodings, face_enc, TOLERANCE)
+        for (top, right, bottom, left), face_enc in zip(faces, encodings):
 
-                if True in matches:
-                    # DRAW BOX
-                    cv2.rectangle(annotated, (left, top), (right, bottom), (0, 255, 0), 2)
-                    cv2.putText(annotated, "MATCH FOUND", (left, top - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            matches = face_recognition.compare_faces(enc_list, face_enc, TOLERANCE)
 
-                    # SAVE IMAGE
-                    timestamp = int(time.time())
-                    filename = f"match_{timestamp}.jpg"
-                    save_path = str(AI_FOUND_DIR / filename)
+            if True in matches:
+                idx = matches.index(True)
+                report_id = ids_list[idx]
 
-                    cv2.imwrite(save_path, frame)
-                    logger.info(f"🔥 SAVED: {save_path}")
+                cv2.rectangle(annotated, (left, top), (right, bottom), (0,255,0),2)
+                cv2.putText(annotated, f"ID {report_id}", (left, top-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0),2)
 
-                else:
-                    cv2.rectangle(annotated, (left, top), (right, bottom), (0, 0, 255), 2)
+                filename = f"match_{int(time.time())}.jpg"
+                save_path = AI_FOUND_DIR / filename
+                cv2.imwrite(str(save_path), frame)
 
-            cv2.putText(annotated, f"Scanning {len(target_encodings)} targets", (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                # ✅ SEND WITH GPS
+                try:
+                    requests.post(SAVE_API, json={
+                        "report_id": report_id,
+                        "confidence": 90,
+                        "image_path": f"uploads/ai_found/{filename}",
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "latitude": current_location["latitude"],
+                        "longitude": current_location["longitude"]
+                    })
+                    logger.info(f"Saved detection with GPS for ID {report_id}")
+                except Exception as e:
+                    logger.error(e)
 
         global latest_annotated
         latest_annotated = annotated
 
-# ------------------ WORKERS ------------------
-
-def start_workers():
-    threading.Thread(target=camera_thread, daemon=True).start()
-    threading.Thread(target=detection_thread, daemon=True).start()
-
-# ------------------ ROUTES ------------------
-
+# ---------------- ROUTES ----------------
 @app.route('/start_detection', methods=['POST'])
 def start_detection():
     stop_event.clear()
 
     data = request.json
-    selected_ids = data.get('selected_ids', [])
 
-    count = load_selected_targets(selected_ids)
-    start_workers()
+    ids = data.get('report_ids', [])
 
-    return jsonify({'status': 'success', 'targets': count})
+    # ✅ STORE GPS
+    current_location["latitude"] = data.get("latitude")
+    current_location["longitude"] = data.get("longitude")
+
+    print("📍 GPS RECEIVED:", current_location)
+
+    load_selected_targets(ids)
+
+    threading.Thread(target=camera_thread, daemon=True).start()
+    threading.Thread(target=detection_thread, daemon=True).start()
+
+    return jsonify({"status":"started"})
 
 @app.route('/stop_detection', methods=['POST'])
 def stop_detection():
     stop_event.set()
-    return jsonify({'status': 'stopped'})
+    return jsonify({"status":"stopped"})
 
 @app.route('/video_feed')
 def video_feed():
@@ -202,18 +169,18 @@ def video_feed():
             frame = latest_annotated if latest_annotated is not None else latest_frame
 
             if frame is None:
-                frame = np.zeros((FRAME_H, FRAME_W, 3), dtype=np.uint8)
+                frame = np.zeros((480,640,3), dtype=np.uint8)
 
             _, buffer = cv2.imencode('.jpg', frame)
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' +
                    buffer.tobytes() + b'\r\n')
 
-            time.sleep(1/30)
-
     return Response(gen(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# ------------------ MAIN ------------------
+# ✅ HEALTH CHECK (for frontend)
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok", "running": not stop_event.is_set()})
 
 if __name__ == '__main__':
-    print("🚀 AI SERVER RUNNING (FINAL)...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(port=5001)

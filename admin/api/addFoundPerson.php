@@ -72,12 +72,15 @@ if (!empty($photo_data)) {
 
 $mysql_datetime = date('Y-m-d H:i:s', strtotime($found_datetime));
 
-$stmt = $conn->prepare("INSERT INTO found_persons 
-    (user_id, found_name, found_location, found_datetime, description, photo_path, contact_info, match_status, created_at) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'unmatched', NOW())");
-$stmt->bind_param('isssssss', 
-    $user_id, $found_name, $found_location, $mysql_datetime, $description, 
-    $photo_path, $contact_info);
+// Insert into detections table instead (treat manual found persons as detections)
+// Get a report to associate with (or use NULL if standalone)
+$report_id = isset($_POST['report_id']) ? (int)$_POST['report_id'] : null;
+
+$stmt = $conn->prepare("INSERT INTO detections 
+    (report_id, image_path, confidence, address, timestamp) 
+    VALUES (?, ?, 100, ?, ?)");
+$stmt->bind_param('isss', 
+    $report_id, $photo_path, $found_location, $mysql_datetime);
 
 if ($stmt->execute()) {
     $found_id = $stmt->insert_id;

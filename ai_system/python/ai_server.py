@@ -61,6 +61,8 @@ latest_annotated = None
 camera_worker = None
 detection_worker = None
 workers_lock = threading.Lock()
+session_latitude = 0.0
+session_longitude = 0.0
 
 @app.after_request
 def cors(response):
@@ -139,13 +141,14 @@ def save_and_report_detection(report_id, confidence, face_crop):
         full_path = AI_FOUND_DIR / fname
         rel_path = f'uploads/ai_found/{fname}'
         
-        if not cv2.imwrite(str(full_path), face_crop, [cv2.IMWRITE_JPEG_QUALITY, 95]):
-            raise RuntimeError('imwrite failed')
+        cv2.imwrite(str(full_path), face_crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
         
         data = {
             'report_id': int(report_id),
             'image_path': rel_path,
             'confidence': conf_pct,
+            'latitude': session_latitude,
+            'longitude': session_longitude,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         
@@ -323,19 +326,22 @@ def video_feed():
 def start_detection():
     data = request.get_json() or {}
     print(f"🔍 DEBUG /start_detection - Received: {data}")
-    print(f"🔍 DEBUG - Keys: {list(data.keys()) if data else 'empty'}")
     selected_ids = data.get('selected_ids') or data.get('report_ids', [])
     camera_src = data.get('camera', 0)
+    
+    # Store session GPS location
+    global session_latitude, session_longitude
+    session_latitude = float(data.get('latitude', 0.0))
+    session_longitude = float(data.get('longitude', 0.0))
+    print(f"📍 GPS Session set: lat={session_latitude}, lng={session_longitude}")
 
     if not isinstance(selected_ids, list):
         print(f"🔍 DEBUG - Invalid selected_ids type: {type(selected_ids)}")
         return jsonify({'error': 'selected_ids/report_ids list required'}), 400
-    print(f"🔍 DEBUG - Using selected_ids: {selected_ids}")
     
     with recent_detections_lock:
         recent_detections.clear()
     
-    # Override global for camera
     request.camera_source = camera_src
     
     try:
@@ -346,12 +352,12 @@ def start_detection():
         count = 0
 
     ensure_workers()
-    logger.info(f'▶️ Started detection: {count} targets, cam={camera_src}')
+    logger.info(f'▶️ Started detection: {count} targets, cam={camera_src}, GPS=({session_latitude}, {session_longitude})')
     return jsonify({
         'status': 'success', 
         'targets_loaded': count, 
         'camera': camera_src,
-        'debug_selected_ids': selected_ids
+        'gps': {'lat': session_latitude, 'lng': session_longitude}
     })
 
 @app.route('/stop_detection', methods=['POST'])

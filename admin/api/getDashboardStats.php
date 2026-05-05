@@ -1,8 +1,12 @@
 <?php
 /**
- * Get Dashboard Statistics
- * Used by PoliceD.php and Dashboard2.php
+ * Get Dashboard Statistics - HopeFinder Admin
+ * Cards: Total Missing, Found, Today Detections, AI Success
  */
+
+ini_set('display_errors', 0);
+error_reporting(0);
+ob_start();
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -11,53 +15,46 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../../Database/Conn_db.php';
 
+function safeCount($conn, $table, $where = '') {
+    try {
+        $sql = "SELECT COUNT(*) as cnt FROM " . $table;
+        if ($where) {
+            $sql .= " WHERE " . $where;
+        }
+        $result = $conn->query($sql);
+        if ($result && $row = $result->fetch_assoc()) {
+            return (int)$row['cnt'];
+        }
+    } catch (Exception $e) {
+        // Table might not exist, return 0
+    }
+    return 0;
+}
+
 try {
-    // Total users (role = 'public')
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE role = 'public'");
-    $stmt->execute();
-    $users = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
+    $total_missing = safeCount($conn, 'missing_reports');
+    $total_found = safeCount($conn, 'detections');
+    $today_detections = safeCount($conn, 'detections', "DATE(timestamp) = CURDATE()");
+    $ai_success = safeCount($conn, 'ai_matches', "status IN ('approved', 'confirmed')");
 
-    // Total police
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE role = 'police'");
-    $stmt->execute();
-    $police = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-
-    // Total reports
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM missing_reports");
-    $stmt->execute();
-    $reports = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-
-    // Matched/found cases (status = 'closed')
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM missing_reports WHERE status = 'closed'");
-    $stmt->execute();
-    $matches = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-
-    // Pending verification
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM missing_reports WHERE status = 'pending'");
-    $stmt->execute();
-    $pending = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-    $stmt->close();
-
-    echo json_encode([
-        'status' => 'success',
-        'users' => (int)$users,
-        'police' => (int)$police,
-        'reports' => (int)$reports,
-        'matches' => (int)$matches,
-        'pending' => (int)$pending
-    ]);
+    ob_clean();
+    header('Content-Type: application/json');
+    echo json_encode(array(
+        "status" => "success",
+        "total_missing" => $total_missing,
+        "total_found" => $total_found,
+        "today_detections" => $today_detections,
+        "ai_success" => $ai_success
+    ));
 
 } catch (Exception $e) {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Database error: ' . $e->getMessage()
-    ]);
+    ob_clean();
+    header('Content-Type: application/json');
+    echo json_encode(array(
+        "status" => "error",
+        "message" => $e->getMessage()
+    ));
 }
 
 $conn->close();
 ?>
-

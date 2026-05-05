@@ -15,6 +15,7 @@ const POLL_INTERVAL = 2000; // 2s
 let selectedReports = [];
 let pollInterval;
 let statusCheckInterval;
+let locationCache = {};
 let seenDetections = new Set();
 
 // DOM
@@ -156,32 +157,50 @@ selectAllBtn.addEventListener('click', () => {
     updateSelection();
 });
 
-// Start AI
-startBtn.addEventListener('click', async () => {
-    try {
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        statusEl.textContent = 'Starting...';
-        statusEl.className = 'text-warning';
-        
-        const res = await fetch(API_BASE + 'start_ai.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({report_ids: selectedReports})
-        });
-        const data = await readJson(res);
-        
-        if (data.status === 'success') {
-            statusEl.textContent = 'Running';
-            statusEl.className = 'text-success';
-            startStream();
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (e) {
-        alert('Start failed: ' + e.message);
-        resetButtons();
+// Start AI with GPS
+// 🔥 GLOBAL
+let gpsData = {};
+
+startBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+        alert('GPS not supported');
+        return;
     }
+
+    startBtn.disabled = true;
+    statusEl.textContent = 'Getting GPS...';
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+
+            // ✅ GLOBAL VALUE
+            gpsData = {
+                report_ids: selectedReports,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
+
+            console.log("GPS:", gpsData);
+
+            const res = await fetch(API_BASE + 'start_ai.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(gpsData)
+            });
+
+            const data = await res.json();
+
+           if (data.status === 'success') {
+    statusEl.textContent = 'Running';
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false; // ⭐ यही missing है
+
+    startStream();
+}
+        }
+    );
 });
 
 // Stop AI
@@ -220,53 +239,94 @@ function stopStream() {
     streamStatus.style.display = 'block';
 }
 
+
+// fetch location
+async function getAddress(lat, lng) {
+    const key = lat + "," + lng;
+
+    // cache hit
+    if (locationCache[key]) return locationCache[key];
+
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+            {
+                headers: {
+                    "User-Agent": "HopeFinderApp/1.0" // 🔥 IMPORTANT
+                }
+            }
+        );
+
+        if (!res.ok) throw new Error("API blocked");
+
+        const data = await res.json();
+
+        const address = data.display_name || "Unknown Location";
+
+        locationCache[key] = address; // save cache
+
+        return address;
+
+    } catch (err) {
+        console.error("Location error:", err);
+        return "Location unavailable";
+    }
+}
+
 // Poll detections
+// ---------------- DETECTIONS ----------------
 async function pollDetections() {
     try {
         const res = await fetch(API_BASE + 'get_detections.php?limit=10');
         const data = await readJson(res);
         const detections = Array.isArray(data) ? data : [];
-        
-        // Check for new high-confidence matches
-        detections.forEach(det => {
-            if (!seenDetections.has(det.id) && (det.confidence_level === 'found' || det.confidence_level === 'alert')) {
-                const level = det.confidence_level === 'found' ? 'FOUND' : 'ALERT';
-                showToast(
-                    `Report #${det.report_id} - ${det.confidence_pct || formatConfidence(det.confidence)} (${level})`, 
-                    det.confidence_level || 'success'
-                );
-                seenDetections.add(det.id);
-            }
-        });
-        
+
         detectionsCount.textContent = detections.length;
-        detectionsList.innerHTML = detections.map(det => {
-            const confLevel = det.confidence_level;
-            const badgeClass = confLevel === 'found' ? 'bg-success border-success' :
-                              confLevel === 'alert' ? 'bg-warning border-warning' :
-                              'bg-primary';
-            const name = `Report #${escapeHtml(det.report_id)}`;
-            return `
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card h-100 detection-card ${confLevel === 'found' || confLevel === 'alert' ? 'animate-pulse border-start border-3' : ''}" style="border-left-color: var(--bs-${badgeClass.split('-')[1]});">
-                        <img src="${assetUrl(det.image_path)}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="${name}">
-                        <div class="card-body">
-                            <h6 class="card-title">${name}</h6>
-                            <div class="d-flex justify-content-between">
-                                <span class="badge ${badgeClass} fw-bold">${formatConfidence(det.confidence)}</span>
-                                <small class="text-muted">${new Date(det.timestamp).toLocaleString()}</small>
-                            </div>
-                            ${confLevel ? `<div class="mt-1"><small class="badge bg-secondary">${confLevel.toUpperCase()}</small></div>` : ''}
-                        </div>
-                    </div>
-                </div>
+
+        let rows = "";
+
+        for (const det of detections) {
+
+            // 🔥 LOCATION NAME
+            let address = "Loading...";
+
+            if (det.latitude && det.longitude) {
+                address = await getAddress(det.latitude, det.longitude);
+            }
+
+            // 🔥 CONFIDENCE UI
+            let badge = "bg-secondary";
+            if (det.confidence >= 0.85) badge = "bg-success";
+            else if (det.confidence >= 0.60) badge = "bg-warning";
+
+            rows += `
+                <tr class="align-middle text-center">
+                    <td>${det.id}</td>
+
+                    <td>
+                        <img src="${assetUrl(det.image_path)}"
+                        style="width:80px;height:60px;object-fit:cover;border-radius:6px">
+                    </td>
+
+                    <td><strong>${escapeHtml(det.report_id)}</strong></td>
+
+                    <td>${address}</td>
+
+                    <td>
+                        ${new Date(det.timestamp).toLocaleString()}
+                    </td>
+                </tr>
             `;
-        }).join('') || '<div class="col-12"><p class="text-muted text-center">No detections yet</p></div>';
-        
-        // Cleanup old seen (keep last 100)
-        if (seenDetections.size > 100) {
-            seenDetections = new Set([...seenDetections].slice(-100));
         }
+
+        detectionsList.innerHTML = rows || `
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    No detections yet
+                </td>
+            </tr>
+        `;
+
     } catch (e) {
         console.error('Poll error:', e);
     }
@@ -301,3 +361,7 @@ loadMissing();
 pollInterval = setInterval(pollDetections, POLL_INTERVAL);
 statusCheckInterval = setInterval(checkStatus, 3000);
 checkStatus();
+
+
+startBtn.disabled = true;
+stopBtn.disabled = true;

@@ -1,28 +1,85 @@
 <?php
-session_start(); // Admin/police can send without full auth for system notifications
-require_once __DIR__ . '/../Database/Conn_db.php';
+require_once __DIR__ . '/../../Database/Conn_db.php';
+require_once __DIR__ . '/../../api/helpers/notification_helper.php';
 
-$user_id = (int)($_POST['user_id'] ?? 0);
-$target = $_POST['target'] ?? 'all';
-$message = trim($_POST['message'] ?? '');
-$type = $_POST['type'] ?? null;
-$link = $_POST['link'] ?? null;
-$priority = $_POST['priority'] ?? 'low';
+header("Content-Type: application/json");
 
-if (empty($message)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Message required']);
+$data = json_decode(file_get_contents("php://input"), true);
+
+$target    = $data['target'] ?? '';
+$recipient = trim($data['recipient'] ?? '');
+$message   = trim($data['message'] ?? '');
+
+// ❌ VALIDATION
+if(empty($message)){
+    echo json_encode(["error" => "Message required"]);
     exit;
 }
 
-$stmt = $conn->prepare("INSERT INTO notifications (user_id, target, message, type, link, priority) VALUES (?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("isssss", $user_id, $target, $message, $type, $link, $priority);
-
-if ($stmt->execute()) {
-    echo json_encode(['success' => true, 'id' => $conn->insert_id]);
-} else {
-    echo json_encode(['error' => $stmt->error]);
+// ===============================
+// 🔴 ALL USERS
+// ===============================
+if($target === "all"){
+    notifyAll($message);
+    echo json_encode(["success" => true, "type" => "all"]);
+    exit;
 }
-$stmt->close();
-?>
 
+// ===============================
+// 🔴 POLICE USERS
+// ===============================
+if($target === "police"){
+    notifyPolice($message);
+    echo json_encode(["success" => true, "type" => "police"]);
+    exit;
+}
+
+// ===============================
+// 🔴 SPECIFIC USER (ID OR EMAIL)
+// ===============================
+if($target === "public"){
+
+    if(empty($recipient)){
+        echo json_encode(["error" => "User ID or Email required"]);
+        exit;
+    }
+
+    $user_id = null;
+
+    // 🔹 CASE 1: USER ID
+    if(is_numeric($recipient)){
+        $user_id = intval($recipient);
+    }
+
+    // 🔹 CASE 2: EMAIL
+    else{
+        $stmt = $conn->prepare("SELECT user_id FROM users WHERE LOWER(email)=LOWER(?) LIMIT 1");
+        $stmt->bind_param("s", $recipient);
+        $stmt->execute();
+        $res = $stmt->get_result()->fetch_assoc();
+
+        if($res){
+            $user_id = $res['user_id'];
+        } else {
+            echo json_encode(["error" => "User not found with this email"]);
+            exit;
+        }
+    }
+
+    // 🔥 FINAL INSERT
+    if($user_id){
+        createNotification($user_id, $message, "admin", "user");
+        echo json_encode(["success" => true, "user_id" => $user_id]);
+        exit;
+    } else {
+        echo json_encode(["error" => "Invalid user"]);
+        exit;
+    }
+}
+
+// ===============================
+// ❌ INVALID TARGET
+// ===============================
+echo json_encode(["error" => "Invalid target"]);
+exit;
+?>

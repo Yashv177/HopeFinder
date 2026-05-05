@@ -1,0 +1,355 @@
+/* ===========================================
+   SIDEBAR TOGGLE BUTTON - FIXED UI
+   Professional Police Dashboard Theme
+   =========================================== */
+
+/* ===== TOGGLE BUTTON BASE STYLES ===== */
+.sidebar-toggle {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border: none;
+    background: var(--bg-hover, #1e1e2a);
+    border-radius: var(--radius-md, 12px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all var(--transition-fast, 0.15s ease);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.sidebar-toggle:hover {
+    background: var(--bg-tertiary, #1a1a24);
+}
+
+.sidebar-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+}
+
+.sidebar-toggle:active {
+    transform: scale(0.95);
+}
+
+/* ===== HAMBURGER ICON LINES ===== */
+.sidebar-toggle .toggle-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 14px;
+    position: relative;
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.sidebar-toggle .toggle-icon::before,
+.sidebar-toggle .toggle-icon::after,
+.sidebar-toggle .toggle-icon span {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: var(--text-primary, #ffffff);
+    border-radius: 2px;
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+/* Top line */
+.sidebar-toggle .toggle-icon::before {
+    top: 0;
+    transform-origin: center center;
+}
+
+/* Middle line */
+.sidebar-toggle .toggle-icon span {
+    top: 50%;
+    transform: translateY(-50%);
+    width: 80%;
+}
+
+/* Bottom line */
+.sidebar-toggle .toggle-icon::after {
+    bottom: 0;
+    transform-origin: center center;
+}
+
+/* ===== TOGGLED STATE (OPEN) ===== */
+body.sidebar-collapsed .sidebar-toggle .toggle-icon {
+    transform: rotate(180deg);
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon::before {
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 100%;
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon span {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0);
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon::after {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%) rotate(-45deg);
+    width: 100%;
+}
+
+/* ===== ALTERNATIVE: CROSS ICON (Optional) ===== */
+/* Uncomment below and comment above for X icon on toggle */
+body.sidebar-collapsed .sidebar-toggle .toggle-icon-x {
+    transform: rotate(90deg);
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon-x::before {
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 100%;
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon-x span {
+    opacity: 0;
+}
+
+body.sidebar-collapsed .sidebar-toggle .toggle-icon-x::after {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%) rotate(-45deg);
+    width: 100%;
+}
+
+/* ===== SIDEBAR COLLAPSED STATE TRANSITIONS ===== */
+#sidebar {
+    transition: width var(--transition-normal, 0.3s ease),
+                transform var(--transition-normal, 0.3s ease),
+                margin-left var(--transition-normal, 0.3s ease);
+}
+
+#content {
+    transition: margin-left var(--transition-normal, 0.3s ease);
+}
+
+/* Collapsed sidebar on large screens */
+body.sidebar-collapsed:not(.sidebar-mobile) #sidebar {
+    width: 80px;
+}
+
+body.sidebar-collapsed:not(.sidebar-mobile) #content {
+    margin-left: 80px;
+}
+
+/* Hide text elements when collapsed */
+body.sidebar-collapsed .sidebar-text,
+body.sidebar-collapsed .sidebar-header > div:not(:first-child),
+body.sidebar-collapsed .sidebar-profile > div:not(:first-child),
+body.sidebar-collapsed .nav-badge {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+body.sidebar-collapsed .nav-link {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+/* Sidebar header in collapsed state */
+body.sidebar-collapsed .sidebar-header {
+    padding: 1.25rem 0.5rem;
+    justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-header i {
+    font-size: 2rem;
+}
+
+body.sidebar-collapsed .sidebar-header .sidebar-text,
+body.sidebar-collapsed .sidebar-header > div:not(:first-child) {
+    display: none !important;
+}
+
+body.sidebar-collapsed .sidebar-profile {
+    padding: 0.75rem 0.5rem;
+    justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-profile img {
+    width: 32px;
+    height: 32px;
+}
+
+body.sidebar-collapsed .sidebar-profile > div:not(:first-child) {
+    display: none !important;
+}
+
+/* Navigation items in collapsed state */
+body.sidebar-collapsed .nav {
+    padding: 0.5rem 0.25rem;
+}
+
+body.sidebar-collapsed .nav-link {
+    padding: 0.75rem;
+    margin: 2px 0;
+}
+
+body.sidebar-collapsed .nav-icon {
+    width: 28px;
+    height: 28px;
+}
+
+body.sidebar-collapsed .sidebar-logout {
+    padding: 0.5rem 0.25rem;
+}
+
+body.sidebar-collapsed .sidebar-logout .sidebar-action {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+body.sidebar-collapsed .sidebar-logout .sidebar-text {
+    display: none !important;
+}
+
+/* Sidebar profile in collapsed state */
+body.sidebar-collapsed .sidebar-profile > div {
+    display: none;
+}
+
+body.sidebar-collapsed .sidebar-profile img {
+    margin: 0 auto;
+}
+
+/* ===== MOBILE SIDEBAR (OVERLAY) ===== */
+@media (max-width: 991px) {
+    body.sidebar-mobile #sidebar {
+        transform: translateX(0);
+        width: 280px;
+    }
+    
+    body:not(.sidebar-mobile) #sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+    }
+    
+    body:not(.sidebar-mobile) #content {
+        margin-left: 0;
+    }
+    
+    /* Mobile toggle adjustments */
+    .sidebar-toggle {
+        position: relative;
+        z-index: 1050;
+    }
+}
+
+/* ===== SIDEBAR OVERLAY MODE (When mobile sidebar is open) ===== */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== SMOOTH EASING ===== */
+.ease-smooth {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== TOGGLE BUTTON IN TOPBAR CONTAINER ===== */
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md, 1rem);
+    flex-shrink: 0;
+}
+
+.topbar-title {
+    flex-shrink: 0;
+}
+
+/* Ensure toggle button stays in header on scroll */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* ===== ICON ANIMATION VARIANTS ===== */
+
+/* Variant 1: Simple rotation */
+.sidebar-toggle.rotate .toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.sidebar-toggle.rotate:hover .toggle-icon {
+    transform: rotate(90deg);
+}
+
+/* Variant 2: Scale effect */
+.sidebar-toggle.scale .toggle-icon {
+    transition: transform 0.2s ease;
+}
+
+.sidebar-toggle.scale:hover .toggle-icon {
+    transform: scale(1.1);
+}
+
+/* ===== ACCESSIBILITY ===== */
+.sidebar-toggle[aria-expanded="true"] .toggle-icon::before {
+    transform: translateY(6px) rotate(45deg);
+}
+
+.sidebar-toggle[aria-expanded="true"] .toggle-icon span {
+    opacity: 0;
+}
+
+.sidebar-toggle[aria-expanded="true"] .toggle-icon::after {
+    transform: translateY(-6px) rotate(-45deg);
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+@media (prefers-contrast: high) {
+    .sidebar-toggle {
+        background: #ffffff;
+        border: 2px solid #000000;
+    }
+    
+    .sidebar-toggle .toggle-icon::before,
+    .sidebar-toggle .toggle-icon::after,
+    .sidebar-toggle .toggle-icon span {
+        background: #000000;
+    }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-toggle,
+    .sidebar-toggle .toggle-icon,
+    .sidebar-toggle .toggle-icon::before,
+    .sidebar-toggle .toggle-icon::after,
+    .sidebar-toggle .toggle-icon span,
+    #sidebar,
+    #content {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+

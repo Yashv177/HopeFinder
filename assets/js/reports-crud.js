@@ -155,7 +155,13 @@ async function viewReport(reportId) {
         const data = await response.json();
         
         if (data.status !== 'success') {
-            Swal.fire('Error', data.message || 'Failed to load report', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to load report',
+                background: '#16161e',
+                color: '#fff'
+            });
             return;
         }
         
@@ -214,7 +220,13 @@ async function viewReport(reportId) {
         
     } catch (error) {
         console.error('Error viewing report:', error);
-        Swal.fire('Error', 'Failed to load report details', 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load report details',
+            background: '#16161e',
+            color: '#fff'
+        });
     }
 }
 
@@ -251,7 +263,13 @@ async function saveCaseUpdate() {
             showNotification('success', 'Case updated successfully!');
             loadReports(); // Refresh table to show updated status
         } else {
-            Swal.fire('Error', data.message || 'Failed to update case', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to update case',
+                background: '#16161e',
+                color: '#fff'
+            });
         }
         
     } catch (error) {
@@ -332,15 +350,33 @@ function verifyReport(reportId) {
             const data = await response.json();
             
             if (data.status === 'success') {
-                Swal.fire('Verified!', 'Report has been verified successfully', 'success');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Verified!',
+                    text: 'Report has been verified successfully',
+                    background: '#16161e',
+                    color: '#fff'
+                });
                 loadReports(); // Refresh table
             } else {
-                Swal.fire('Error', data.message || 'Failed to verify report', 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Failed to verify report',
+                    background: '#16161e',
+                    color: '#fff'
+                });
             }
             
         } catch (error) {
             console.error('Error verifying report:', error);
-            Swal.fire('Error', 'Failed to verify report', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to verify report',
+                background: '#16161e',
+                color: '#fff'
+            });
         }
     });
 }
@@ -357,7 +393,13 @@ async function assignPoliceToReport(reportId) {
         const checkData = await checkResponse.json();
         
         if (checkData.status !== 'success') {
-            Swal.fire('Error', 'Failed to check report status', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to check report status',
+                background: '#16161e',
+                color: '#fff'
+            });
             return;
         }
         
@@ -425,7 +467,13 @@ async function assignPoliceToReport(reportId) {
         
     } catch (error) {
         console.error('Error in assign flow:', error);
-        Swal.fire('Error', 'An error occurred', 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred',
+            background: '#16161e',
+            color: '#fff'
+        });
     }
 }
 
@@ -446,15 +494,33 @@ async function assignPolice(reportId, policeId) {
         const data = await response.json();
         
         if (data.status === 'success') {
-            Swal.fire('Assigned!', 'Police officer has been assigned to the report', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: 'Assigned!',
+                text: 'Police officer has been assigned to the report',
+                background: '#16161e',
+                color: '#fff'
+            });
             loadReports(); // Refresh table
         } else {
-            Swal.fire('Error', data.message || 'Failed to assign police', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to assign police',
+                background: '#16161e',
+                color: '#fff'
+            });
         }
         
     } catch (error) {
         console.error('Error assigning police:', error);
-        Swal.fire('Error', 'Failed to assign police officer', 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to assign police officer',
+            background: '#16161e',
+            color: '#fff'
+        });
     }
 }
 

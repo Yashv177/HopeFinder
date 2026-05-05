@@ -67,6 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_report'])) {
         if ($stmt->execute()) {
             $report_id = $stmt->insert_id;
             $stmt->close();
+
+            require_once '../api/helpers/notification_helper.php';
+
+    sendNotification($user_id, "user", "Report submitted successfully");
+    sendNotification(null, "admin", "New report added");
+            
             // Post/Redirect/Get pattern to prevent resubmission on refresh
             header('Location: UserD.php?success=1&id=' . $report_id);
             exit;
@@ -110,7 +116,13 @@ if ($result) {
 
 // Get notifications
 $notifications = [];
-$result = $conn->query("SELECT * FROM notifications WHERE target IN ('all', 'user') ORDER BY created_at DESC LIMIT 10");
+$result = $conn->query("
+    SELECT * FROM notifications 
+    WHERE (target='user' AND user_id=$user_id)
+       OR target='all'
+    ORDER BY created_at DESC 
+    LIMIT 10
+");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $notifications[] = $row;

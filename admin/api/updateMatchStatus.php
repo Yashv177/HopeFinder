@@ -63,11 +63,8 @@ try {
                 $stmt3->execute();
                 $stmt3->close();
                 
-                // Update found person status
-                $stmt4 = $conn->prepare("UPDATE found_persons SET match_status = 'matched' WHERE found_id = ?");
-                $stmt4->bind_param('i', $row['found_id']);
-                $stmt4->execute();
-                $stmt4->close();
+                // Found person updated via detection record
+                // (No separate found_persons table, data is in detections)
             }
             $stmt2->close();
         }
