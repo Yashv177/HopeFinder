@@ -1,4 +1,4 @@
-# HopeFinder - AI-Powered Missing Persons Finder
+# HopeFinder - AI Based Lost People Finder Web Application 
 
 HopeFinder is a full-stack web application for managing missing persons reports, with admin/police/user dashboards, real-time notifications, and AI-powered CCTV face recognition integration using DeepFace and OpenCV.
 
